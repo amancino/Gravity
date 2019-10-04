@@ -12,6 +12,7 @@
 #include <vtkInteractorStyleTrackball.h>
 #include <vtkProperty.h>
 
+#include "Planet.h"
 using namespace std;
 
 
@@ -62,12 +63,8 @@ private:
 	const double DT = 0.1;
 
 public:
-	vtkActor* sunActor = nullptr;
-	vtkActor* earthActor = nullptr;
-	double sunMass = 1.0;
-	double earthMass = 1.0;
-	double earthSpeed[3] = { 0.0 };
-	double sunSpeed[3] = { 0.0 };
+	Planet* sun;
+	Planet* earth;
 
 	int timerId = 0;
 	int maxCount = -1;
@@ -78,11 +75,11 @@ void TimerCallback::ComputeDisplacements()
 	// compute distance between bodies
 
 	double earthPos[3];
-	earthActor->GetPosition(earthPos);
+	earth->mActor->GetPosition(earthPos);
 	cout << "Earth pos: " << earthPos[0] << ", " << earthPos[1] << ", " << earthPos[2] << endl;
 	
 	double sunPos[3];
-	sunActor->GetPosition(sunPos);
+	sun->mActor->GetPosition(sunPos);
 	cout << "Sun pos: " << sunPos[0] << ", " << sunPos[1] << ", " << sunPos[2] << endl;
 
 
@@ -97,101 +94,61 @@ void TimerCallback::ComputeDisplacements()
 	cout << " F = " << F;
 	
 	// compute acceleration
-	double earthAcc = F / earthMass;
-	double sunAcc = F / sunMass;
+	double earthAcc = F / earth->mMass;
+	double sunAcc = F / sun->mMass;
 
 	cout << " acc = " << earthAcc;
 
 	// compute and store velocities
 	for (int i = 0; i < 3; i++)
-		earthSpeed[i] = earthSpeed[i] + earthAcc*DT*dir[i];
+		earth->mSpeed[i] = earth->mSpeed[i] + earthAcc*DT*dir[i];
 
-	cout << " speed = " << vtkMath::Norm(earthSpeed) << endl;
+	cout << " speed = " << vtkMath::Norm(earth->mSpeed) << endl;
 
 	// update position
 	double newEarthPos[3];
 	for (int i = 0; i < 3; i++)
-		newEarthPos[i] = earthPos[i] + earthSpeed[i]*DT;
+		newEarthPos[i] = earthPos[i] + earth->mSpeed[i]*DT;
 
-	earthActor->SetPosition(newEarthPos);
+	earth->mActor->SetPosition(newEarthPos);
 }
 
 
 int main (int, char *[])
 {
-  // Sphere 1
-  vtkSmartPointer<vtkSphereSource> sun = 
-    vtkSmartPointer<vtkSphereSource>::New();
-	sun->SetCenter(0.0, 0.0, 0.0);
-	sun->SetRadius(5.0);
-	sun->SetPhiResolution(32);
-	sun->SetThetaResolution(32);
-	sun->Update();
-  
-  vtkSmartPointer<vtkPolyDataMapper> mapper1 = 
-    vtkSmartPointer<vtkPolyDataMapper>::New();
-  mapper1->SetInputConnection(sun->GetOutputPort());
-  
-  vtkSmartPointer<vtkActor> actor1 = 
-    vtkSmartPointer<vtkActor>::New();
-  actor1->SetMapper(mapper1);
-	actor1->GetProperty()->SetColor(1,1,0);
-  
-  // Sphere 2
-  vtkSmartPointer<vtkSphereSource> earth = 
-    vtkSmartPointer<vtkSphereSource>::New();
-	earth->SetCenter(0.0, 0.0, 0.0);
-	earth->SetRadius(1.0);
-	earth->SetPhiResolution(32);
-	earth->SetThetaResolution(32);
-	earth->Update();
-  
-  // Create a mapper
-  vtkSmartPointer<vtkPolyDataMapper> mapper2 = 
-    vtkSmartPointer<vtkPolyDataMapper>::New();
-  mapper2->SetInputConnection(earth->GetOutputPort());
+	Planet sun(10,100);
+	Planet earth(10, 10);
 
-  // Create an actor
-  vtkSmartPointer<vtkActor> actor2 = 
-    vtkSmartPointer<vtkActor>::New();
-  actor2->SetMapper(mapper2);
-	actor2->GetProperty()->SetColor(0, 0, 1);
-
-  // A renderer and render window
-  vtkSmartPointer<vtkRenderer> renderer = 
-    vtkSmartPointer<vtkRenderer>::New();
-  vtkSmartPointer<vtkRenderWindow> renderWindow = 
-    vtkSmartPointer<vtkRenderWindow>::New();
+  // Create a renderer and render window
+  vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
+  vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
   renderWindow->AddRenderer(renderer);
 
   // An interactor
-  vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = 
-    vtkSmartPointer<vtkRenderWindowInteractor>::New();
+  vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
   renderWindowInteractor->SetRenderWindow(renderWindow);
 
   // Add the actors to the scene
-  renderer->AddActor(actor1);
-  renderer->AddActor(actor2);
-  renderer->SetBackground(1,1,1); // Background color white
+  renderer->AddActor(sun.mActor);
+  renderer->AddActor(earth.mActor);
+  renderer->SetBackground(0,0,0);
 
   // Render
   renderWindow->Render();
 
-  vtkSmartPointer<vtkInteractorStyleTrackballCamera> style = 
-    vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New(); //like paraview
-  
+	// mouse interactor
+  vtkSmartPointer<vtkInteractorStyleTrackballCamera> style = vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
   renderWindowInteractor->SetInteractorStyle( style );
   
+	// initisal positions
+	sun.mActor->SetPosition(0, 0, 0);
+	earth.mActor->SetPosition(50, 0, 0);
+	earth.mSpeed[1] = 10;
 
 	// Sign up to receive TimerEvent
 	auto cb = vtkSmartPointer<TimerCallback>::New();
-	actor1->SetPosition(0, 0, 0);
-	actor2->SetPosition(50, 0, 0);
-	cb->sunActor = actor1;
-	cb->earthActor = actor2;
-	cb->earthMass = 10;
-	cb->sunMass = 1000;
-	cb->earthSpeed[1] = 10.0;
+	cb->sun = &sun;
+	cb->earth = &earth;
 
 	renderWindowInteractor->AddObserver(vtkCommand::TimerEvent, cb);
 
