@@ -10,7 +10,7 @@ public:
 	static const double EARTH_RADIUS;
 
 	// radius in m, mass in kg
-	Planet(double radius,double mass);
+	Planet(std::string name, double radius,double mass);
 	~Planet();
 
 	void SetPosition(double* arr);
@@ -22,6 +22,7 @@ public:
 	double mRadius;
 	double mSpeed[3];
 	double mPosition[3];
+	std::string mName;
 
 private:
 	vtkSmartPointer<vtkActor> mActor;

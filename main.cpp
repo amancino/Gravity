@@ -63,8 +63,13 @@ private:
 	const double DT = 60*60*24;		// time resolution
 
 public:
-	Planet* sun;
-	Planet* earth;
+
+	void AddNewPlanet(Planet* planet) 
+	{
+		mPlanets.push_back(planet);
+	}
+
+	std::vector<Planet*> mPlanets;
 
 	int timerId = 0;
 	int maxCount = -1;
@@ -72,64 +77,65 @@ public:
 
 void TimerCallback::ComputeDisplacements()
 {
-	// compute distance between bodies
-	cout << "Earth pos: " << earth->mPosition[0] << ", " << earth->mPosition[1] << ", " << earth->mPosition[2] << endl;
-	cout << "Sun pos: " << sun->mPosition[0] << ", " << sun->mPosition[1] << ", " << sun->mPosition[2] << endl;
-
-
-	double dist2 = vtkMath::Distance2BetweenPoints(earth->mPosition, sun->mPosition);
-	double dir[3] = { 0.0 };
-	for (int i = 0; i < 3; i++)
-		dir[i] = sun->mPosition[i] - earth->mPosition[i];
-	vtkMath::Normalize(dir);
-	
-	// compute force between bodies
 	// Newton's law of universal gravitation
 	const double G = 6.67430e-11;
-	const double m1 = earth->mMass;
-	const double m2 = sun->mMass;
-	double F = G * m1*m2/dist2;
-	cout << " F = " << F << " N";
+
+	// iterate through all bodies
+	for (unsigned int p1 = 0; p1 < mPlanets.size(); p1++)
+	{
+		cout << mPlanets[p1]->mName << " position: " <<
+			mPlanets[p1]->mPosition[0] << ", " <<
+			mPlanets[p1]->mPosition[1] << ", " <<
+			mPlanets[p1]->mPosition[2] << endl;
 	
-	// compute acceleration
-	double earthAcc = F / earth->mMass;
-	double sunAcc = F / sun->mMass;
+		// for each body, compute the forces to other existing bodies
+		for (unsigned int p2 = 0; p2 < mPlanets.size(); p2++)
+		{
+			if (p1 == p2)
+				continue;
 
-	cout << " acc = " << earthAcc << "m/s2";
+			Planet* planet1 = mPlanets[p1];
+			Planet* planet2 = mPlanets[p2];
+			// to do: avoid computing twice the same forces
 
-	// compute and store velocities
-	for (int i = 0; i < 3; i++)
-		earth->mSpeed[i] = earth->mSpeed[i] + earthAcc*DT*dir[i];
+			// compute distance between bodies
+			double dist2 = vtkMath::Distance2BetweenPoints(planet1->mPosition, planet2->mPosition);
+			double dir[3] = { 0.0 };
+			for (int i = 0; i < 3; i++)
+				dir[i] = planet2->mPosition[i] - planet1->mPosition[i];
+			vtkMath::Normalize(dir);
 
-	cout << " earth speed = " << vtkMath::Norm(earth->mSpeed) << "m/s" << endl;
+			// compute force between bodies
+			const double m1 = planet1->mMass;
+			const double m2 = planet2->mMass;
+			double F = G * m1*m2 / dist2;
+			cout << " F = " << F << " N";
 
-	for (int i = 0; i < 3; i++)
-		sun->mSpeed[i] = sun->mSpeed[i] - sunAcc * DT*dir[i];
+			// compute acceleration
+			double acc = F / m1;
+			cout << " acc = " << acc << "m/s2";
 
-	cout << " sun speed = " << vtkMath::Norm(sun->mSpeed) << "m/s" << endl;
+			// compute and store velocities
+			for (int i = 0; i < 3; i++)
+				planet1->mSpeed[i] = planet1->mSpeed[i] + acc * DT*dir[i];
+			cout << " speed = " << vtkMath::Norm(planet1->mSpeed) << "m/s" << endl;
 
-	// update position
-	double newEarthPos[3];
-	for (int i = 0; i < 3; i++)
-		newEarthPos[i] = earth->mPosition[i] + earth->mSpeed[i]*DT;
-
-	earth->SetPosition(newEarthPos);
-
-	double newSunPos[3];
-	for (int i = 0; i < 3; i++)
-		newSunPos[i] = sun->mPosition[i] + sun->mSpeed[i] * DT;
-
-	sun->SetPosition(newSunPos);
-
+			// update position
+			double newEarthPos[3];
+			for (int i = 0; i < 3; i++)
+				newEarthPos[i] = planet1->mPosition[i] + planet1->mSpeed[i] * DT;
+			planet1->SetPosition(newEarthPos);
+		}
+	}
 }
 
 
 int main (int, char *[])
 {
-	Planet sun(6.95700e8, 2e30);
+	Planet sun("Sun",6.95700e8, 2e30);
 
 	// make earth 100 times bigger
-	Planet earth(100* 6.371e6, 5.972e24);
+	Planet earth("Earth",100* 6.371e6, 5.972e24);
 
   // Create a renderer and render window
   vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
@@ -161,8 +167,8 @@ int main (int, char *[])
 
 	// Sign up to receive TimerEvent
 	auto cb = vtkSmartPointer<TimerCallback>::New();
-	cb->sun = &sun;
-	cb->earth = &earth;
+	cb->AddNewPlanet(&sun);
+	cb->AddNewPlanet(&earth);
 
 	renderWindowInteractor->AddObserver(vtkCommand::TimerEvent, cb);
 

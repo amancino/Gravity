@@ -9,8 +9,8 @@
 const double Planet::EARTH_MASS = 5.972*10e24;
 const double Planet::EARTH_RADIUS = 6371*10e3;
 
-Planet::Planet(double radius, double mass) 
-	: mRadius(radius), mMass(mass)
+Planet::Planet(std::string name, double radius, double mass)
+	: mName(name), mRadius(radius), mMass(mass)
 {
 	// For visualization, all bodies are scaled to earth radius unit (eru)
 	auto sphere = vtkSmartPointer<vtkSphereSource>::New();
