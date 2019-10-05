@@ -60,7 +60,7 @@ public:
 
 private:
 	int TimerCount = 0;
-	const double DT = 0.1;
+	const double DT = 60*60*24;		// time resolution
 
 public:
 	Planet* sun;
@@ -73,51 +73,51 @@ public:
 void TimerCallback::ComputeDisplacements()
 {
 	// compute distance between bodies
-
-	double earthPos[3];
-	earth->mActor->GetPosition(earthPos);
-	cout << "Earth pos: " << earthPos[0] << ", " << earthPos[1] << ", " << earthPos[2] << endl;
-	
-	double sunPos[3];
-	sun->mActor->GetPosition(sunPos);
-	cout << "Sun pos: " << sunPos[0] << ", " << sunPos[1] << ", " << sunPos[2] << endl;
+	cout << "Earth pos: " << earth->mPosition[0] << ", " << earth->mPosition[1] << ", " << earth->mPosition[2] << endl;
+	cout << "Sun pos: " << sun->mPosition[0] << ", " << sun->mPosition[1] << ", " << sun->mPosition[2] << endl;
 
 
-	double dist2 = vtkMath::Distance2BetweenPoints(earthPos, sunPos);
+	double dist2 = vtkMath::Distance2BetweenPoints(earth->mPosition, sun->mPosition);
 	double dir[3] = { 0.0 };
 	for (int i = 0; i < 3; i++)
-		dir[i] = sunPos[i] - earthPos[i];
+		dir[i] = sun->mPosition[i] - earth->mPosition[i];
 	vtkMath::Normalize(dir);
 	
 	// compute force between bodies
-	double F = 100000.0/dist2;
-	cout << " F = " << F;
+	// Newton's law of universal gravitation
+	const double G = 6.67430e-11;
+	const double m1 = earth->mMass;
+	const double m2 = sun->mMass;
+	double F = G * m1*m2/dist2;
+	cout << " F = " << F << " N";
 	
 	// compute acceleration
 	double earthAcc = F / earth->mMass;
 	double sunAcc = F / sun->mMass;
 
-	cout << " acc = " << earthAcc;
+	cout << " acc = " << earthAcc << "m/s2";
 
 	// compute and store velocities
 	for (int i = 0; i < 3; i++)
 		earth->mSpeed[i] = earth->mSpeed[i] + earthAcc*DT*dir[i];
 
-	cout << " speed = " << vtkMath::Norm(earth->mSpeed) << endl;
+	cout << " speed = " << vtkMath::Norm(earth->mSpeed) << "m/s" << endl;
 
 	// update position
 	double newEarthPos[3];
 	for (int i = 0; i < 3; i++)
-		newEarthPos[i] = earthPos[i] + earth->mSpeed[i]*DT;
+		newEarthPos[i] = earth->mPosition[i] + earth->mSpeed[i]*DT;
 
-	earth->mActor->SetPosition(newEarthPos);
+	earth->SetPosition(newEarthPos);
 }
 
 
 int main (int, char *[])
 {
-	Planet sun(10,100);
-	Planet earth(10, 10);
+	Planet sun(6.95700e8, 2e30);
+
+	// make earth 100 times bigger
+	Planet earth(100* 6.371e6, 5.972e24);
 
   // Create a renderer and render window
   vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
@@ -129,8 +129,8 @@ int main (int, char *[])
   renderWindowInteractor->SetRenderWindow(renderWindow);
 
   // Add the actors to the scene
-  renderer->AddActor(sun.mActor);
-  renderer->AddActor(earth.mActor);
+  renderer->AddActor(sun.GetActor());
+  renderer->AddActor(earth.GetActor());
   renderer->SetBackground(0,0,0);
 
   // Render
@@ -140,10 +140,12 @@ int main (int, char *[])
   vtkSmartPointer<vtkInteractorStyleTrackballCamera> style = vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
   renderWindowInteractor->SetInteractorStyle( style );
   
-	// initisal positions
-	sun.mActor->SetPosition(0, 0, 0);
-	earth.mActor->SetPosition(50, 0, 0);
-	earth.mSpeed[1] = 10;
+	// initial positions
+	sun.SetPosition(0, 0, 0);
+	earth.SetPosition(149.6e9, 0, 0);
+	
+	// 30 km per second
+	earth.mSpeed[1] = 30.0e3;
 
 	// Sign up to receive TimerEvent
 	auto cb = vtkSmartPointer<TimerCallback>::New();
@@ -155,7 +157,7 @@ int main (int, char *[])
 	int timerId = renderWindowInteractor->CreateRepeatingTimer(100);
 	std::cout << "timerId: " << timerId << std::endl;
 	// Destroy the timer when maxCount is reached.
-	cb->maxCount = 2000;
+	cb->maxCount = 365;
 	cb->timerId = timerId;
 
 	cout << "Starting simulation" << endl;

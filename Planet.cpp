@@ -6,14 +6,17 @@
 #include <vtkPolyDataMapper.h>
 #include <vtkProperty.h>
 
+const double Planet::EARTH_MASS = 5.972*10e24;
+const double Planet::EARTH_RADIUS = 6371*10e3;
+
 Planet::Planet(double radius, double mass) 
 	: mRadius(radius), mMass(mass)
 {
-	// sphere
+	// For visualization, all bodies are scaled to earth radius unit (eru)
 	auto sphere = vtkSmartPointer<vtkSphereSource>::New();
-	sphere->SetRadius(radius);
-	sphere->SetPhiResolution(32);
-	sphere->SetThetaResolution(32);
+	sphere->SetRadius(radius/ EARTH_RADIUS);
+	sphere->SetPhiResolution(16);
+	sphere->SetThetaResolution(16);
 	sphere->SetCenter(0, 0, 0);
 	sphere->Update();
 
@@ -33,4 +36,20 @@ Planet::Planet(double radius, double mass)
 
 Planet::~Planet()
 {
+}
+
+void Planet::SetPosition(double* arr)
+{
+	SetPosition(arr[0], arr[1], arr[2]);
+}
+
+void Planet::SetPosition(double x, double y, double z)
+{
+	// real position
+	mPosition[0] = x;
+	mPosition[1] = y;
+	mPosition[2] = z;
+
+	// position in visualization scaled to earth radius
+	mActor->SetPosition(x / EARTH_RADIUS, y / EARTH_RADIUS, z / EARTH_RADIUS);
 }
