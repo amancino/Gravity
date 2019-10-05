@@ -11,6 +11,7 @@
 #include <vtkInteractorStyleTrackballCamera.h>
 #include <vtkInteractorStyleTrackball.h>
 #include <vtkProperty.h>
+#include <vtkCamera.h>
 
 #include "Planet.h"
 using namespace std;
@@ -60,7 +61,7 @@ public:
 
 private:
 	int TimerCount = 0;
-	const double DT = 60*60*24;		// time resolution
+	const double DT = 60*60*24/24;		// time resolution
 
 public:
 
@@ -83,18 +84,21 @@ void TimerCallback::ComputeDisplacements()
 	// iterate through all bodies
 	for (unsigned int p1 = 0; p1 < mPlanets.size(); p1++)
 	{
-		cout << mPlanets[p1]->mName << " position: " <<
+		cout << std::setprecision(9) << 
+			mPlanets[p1]->mName << " position: " <<
 			mPlanets[p1]->mPosition[0] << ", " <<
 			mPlanets[p1]->mPosition[1] << ", " <<
 			mPlanets[p1]->mPosition[2] << endl;
 	
-		// for each body, compute the forces to other existing bodies
+		Planet* planet1 = mPlanets[p1];
+		double totalAcc[3] = { 0.0 };
+
+		// for each body, compute the forces to other existing bodies and afterwards change its position
 		for (unsigned int p2 = 0; p2 < mPlanets.size(); p2++)
 		{
 			if (p1 == p2)
 				continue;
 
-			Planet* planet1 = mPlanets[p1];
 			Planet* planet2 = mPlanets[p2];
 			// to do: avoid computing twice the same forces
 
@@ -113,29 +117,33 @@ void TimerCallback::ComputeDisplacements()
 
 			// compute acceleration
 			double acc = F / m1;
-			cout << " acc = " << acc << "m/s2";
+			cout << " partial acc = " << acc << "m/s2" << endl;
 
-			// compute and store velocities
+			// add acceleration
 			for (int i = 0; i < 3; i++)
-				planet1->mSpeed[i] = planet1->mSpeed[i] + acc * DT*dir[i];
-			cout << " speed = " << vtkMath::Norm(planet1->mSpeed) << "m/s" << endl;
-
-			// update position
-			double newEarthPos[3];
-			for (int i = 0; i < 3; i++)
-				newEarthPos[i] = planet1->mPosition[i] + planet1->mSpeed[i] * DT;
-			planet1->SetPosition(newEarthPos);
+				totalAcc[i] += acc * dir[i];
 		}
+
+		// compute and store velocities
+		for (int i = 0; i < 3; i++)
+			planet1->mSpeed[i] = planet1->mSpeed[i] + totalAcc[i] * DT;
+		cout << " Total speed = " << vtkMath::Norm(planet1->mSpeed) << "m/s" << endl;
+	}
+
+	// update all positions at the same time
+	for (unsigned int p = 0; p < mPlanets.size(); p++)
+	{
+		double newPos[3];
+		for (int i = 0; i < 3; i++)
+			newPos[i] = mPlanets[p]->mPosition[i] + mPlanets[p]->mSpeed[i] * DT;
+		mPlanets[p]->SetPosition(newPos);
 	}
 }
 
 
 int main (int, char *[])
 {
-	Planet sun("Sun",6.95700e8, 2e30);
-
-	// make earth 100 times bigger
-	Planet earth("Earth",100* 6.371e6, 5.972e24);
+	
 
   // Create a renderer and render window
   vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
@@ -146,12 +154,24 @@ int main (int, char *[])
   vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
   renderWindowInteractor->SetRenderWindow(renderWindow);
 
+	// Add planets
+	Planet sun("Sun", 6.95700e8, 2e30);
+	// make earth and moon 10 times bigger
+	Planet earth("Earth", 30 * 6.371e6,	5.972e24);
+	Planet moon("Moon",		30 * 1.7371e6, 7.34767309e22);
+
   // Add the actors to the scene
   renderer->AddActor(sun.GetActor());
   renderer->AddActor(earth.GetActor());
-  renderer->SetBackground(0,0,0);
+	renderer->AddActor(moon.GetActor());
+
+	sun.GetActor()->GetProperty()->SetColor(1, 1, 0);
+	earth.GetActor()->GetProperty()->SetColor(0, 0.6, 1);
+	moon.GetActor()->GetProperty()->SetColor(0.6, 0.6, 0.6);
 
   // Render
+	renderer->SetBackground(0, 0, 0);
+
   renderWindow->Render();
 
 	// mouse interactor
@@ -161,21 +181,24 @@ int main (int, char *[])
 	// initial positions
 	sun.SetPosition(0, 0, 0);
 	earth.SetPosition(149.6e9, 0, 0);
+	moon.SetPosition(earth.mPosition[0] + 3.844e8, 0, 0);
 	
 	// 30 km per second
 	earth.mSpeed[1] = 30.0e3;
+	moon.mSpeed[1] = earth.mSpeed[1] - 1023.056;
 
 	// Sign up to receive TimerEvent
 	auto cb = vtkSmartPointer<TimerCallback>::New();
 	cb->AddNewPlanet(&sun);
 	cb->AddNewPlanet(&earth);
+	cb->AddNewPlanet(&moon);
 
 	renderWindowInteractor->AddObserver(vtkCommand::TimerEvent, cb);
 
 	int timerId = renderWindowInteractor->CreateRepeatingTimer(100);
 	std::cout << "timerId: " << timerId << std::endl;
 	// Destroy the timer when maxCount is reached.
-	cb->maxCount = 365;
+	cb->maxCount = 365*24;
 	cb->timerId = timerId;
 
 	cout << "Starting simulation" << endl;

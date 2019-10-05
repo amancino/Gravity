@@ -27,7 +27,6 @@ Planet::Planet(std::string name, double radius, double mass)
 	// actor
 	mActor = vtkSmartPointer<vtkActor>::New();
 	mActor->SetMapper(mapper);
-	mActor->GetProperty()->SetColor(1, 1, 0);
 
 	for (int i = 0; i < 3; i++)
 		mSpeed[i] = 0.0;

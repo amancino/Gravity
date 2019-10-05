@@ -16,7 +16,7 @@ public:
 	void SetPosition(double* arr);
 	void SetPosition(double x, double y, double z);
 
-	inline vtkActor* const GetActor() { return mActor; }
+	inline vtkActor* GetActor() { return mActor; }
 
 	double mMass;
 	double mRadius;
