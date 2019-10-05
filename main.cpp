@@ -101,7 +101,12 @@ void TimerCallback::ComputeDisplacements()
 	for (int i = 0; i < 3; i++)
 		earth->mSpeed[i] = earth->mSpeed[i] + earthAcc*DT*dir[i];
 
-	cout << " speed = " << vtkMath::Norm(earth->mSpeed) << "m/s" << endl;
+	cout << " earth speed = " << vtkMath::Norm(earth->mSpeed) << "m/s" << endl;
+
+	for (int i = 0; i < 3; i++)
+		sun->mSpeed[i] = sun->mSpeed[i] - sunAcc * DT*dir[i];
+
+	cout << " sun speed = " << vtkMath::Norm(sun->mSpeed) << "m/s" << endl;
 
 	// update position
 	double newEarthPos[3];
@@ -109,6 +114,13 @@ void TimerCallback::ComputeDisplacements()
 		newEarthPos[i] = earth->mPosition[i] + earth->mSpeed[i]*DT;
 
 	earth->SetPosition(newEarthPos);
+
+	double newSunPos[3];
+	for (int i = 0; i < 3; i++)
+		newSunPos[i] = sun->mPosition[i] + sun->mSpeed[i] * DT;
+
+	sun->SetPosition(newSunPos);
+
 }
 
 
