@@ -1,6 +1,9 @@
 #pragma once
 #include <vtkActor.h>
 #include <vtkSmartPointer.h>
+#include <vtkLineSource.h>
+#include <vtkPoints.h>
+#include <vtkPolyDataMapper.h>
 
 class Planet
 {
@@ -13,8 +16,8 @@ public:
 	Planet(std::string name, double radius,double mass);
 	~Planet();
 
-	void SetPosition(double* arr);
-	void SetPosition(double x, double y, double z);
+	void SetPosition(double* arr, bool computeOrbit=true);
+	void SetPosition(double x, double y, double z, bool computeOrbit=true);
 
 	inline vtkActor* GetActor() { return mActor; }
 
@@ -24,8 +27,17 @@ public:
 	double mPosition[3];
 	std::string mName;
 
+	
+	vtkSmartPointer<vtkActor> mOrbitActor;
+
+protected:
+	void UpdateOrbit();
+
 private:
 	vtkSmartPointer<vtkActor> mActor;
+	
+	vtkSmartPointer<vtkPolyData>				mOrbit;
+	vtkSmartPointer <vtkPoints>					mOrbitPoints;
 
 };
 

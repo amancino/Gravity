@@ -13,9 +13,11 @@
 #include <vtkProperty.h>
 #include <vtkCamera.h>
 
+
 #include "Planet.h"
 using namespace std;
 
+const int DELAY_MS = 100;
 
 class TimerCallback : public vtkCommand
 {
@@ -61,7 +63,7 @@ public:
 
 private:
 	int TimerCount = 0;
-	const double DT = 60*60*24/24;		// time resolution
+	const double DT = 60*60*24;		// time resolution
 
 public:
 
@@ -78,18 +80,22 @@ public:
 
 void TimerCallback::ComputeDisplacements()
 {
+	bool verbose = false;
+
 	// Newton's law of universal gravitation
 	const double G = 6.67430e-11;
 
 	// iterate through all bodies
 	for (unsigned int p1 = 0; p1 < mPlanets.size(); p1++)
 	{
-		cout << std::setprecision(9) << 
-			mPlanets[p1]->mName << " position: " <<
-			mPlanets[p1]->mPosition[0] << ", " <<
-			mPlanets[p1]->mPosition[1] << ", " <<
-			mPlanets[p1]->mPosition[2] << endl;
-	
+		if (verbose)
+		{
+			cout << std::setprecision(9) <<
+				mPlanets[p1]->mName << " position: " <<
+				mPlanets[p1]->mPosition[0] << ", " <<
+				mPlanets[p1]->mPosition[1] << ", " <<
+				mPlanets[p1]->mPosition[2] << endl;
+		}
 		Planet* planet1 = mPlanets[p1];
 		double totalAcc[3] = { 0.0 };
 
@@ -113,11 +119,14 @@ void TimerCallback::ComputeDisplacements()
 			const double m1 = planet1->mMass;
 			const double m2 = planet2->mMass;
 			double F = G * m1*m2 / dist2;
-			cout << " F = " << F << " N";
+			
+			if (verbose)
+				cout << " F = " << F << " N";
 
 			// compute acceleration
 			double acc = F / m1;
-			cout << " partial acc = " << acc << "m/s2" << endl;
+			if (verbose)
+				cout << " partial acc = " << acc << "m/s2" << endl;
 
 			// add acceleration
 			for (int i = 0; i < 3; i++)
@@ -127,7 +136,9 @@ void TimerCallback::ComputeDisplacements()
 		// compute and store velocities
 		for (int i = 0; i < 3; i++)
 			planet1->mSpeed[i] = planet1->mSpeed[i] + totalAcc[i] * DT;
-		cout << " Total speed = " << vtkMath::Norm(planet1->mSpeed) << "m/s" << endl;
+		
+		if (verbose)
+			cout << " Total speed = " << vtkMath::Norm(planet1->mSpeed) << "m/s" << endl;
 	}
 
 	// update all positions at the same time
@@ -143,8 +154,6 @@ void TimerCallback::ComputeDisplacements()
 
 int main (int, char *[])
 {
-	
-
   // Create a renderer and render window
   vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
   vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
@@ -157,31 +166,38 @@ int main (int, char *[])
 	// Add planets
 	Planet sun("Sun", 6.95700e8, 2e30);
 	// make earth and moon 10 times bigger
-	Planet earth("Earth", 30 * 6.371e6,	5.972e24);
-	Planet moon("Moon",		30 * 1.7371e6, 7.34767309e22);
+	Planet earth("Earth", 10 * 6.371e6,	5.972e24);
+	Planet moon("Moon",		10 * 1.7371e6, 7.34767309e22);
 
   // Add the actors to the scene
   renderer->AddActor(sun.GetActor());
   renderer->AddActor(earth.GetActor());
 	renderer->AddActor(moon.GetActor());
+	renderer->AddActor(earth.mOrbitActor);
+	renderer->AddActor(moon.mOrbitActor);
+	renderer->AddActor(sun.mOrbitActor);
 
 	sun.GetActor()->GetProperty()->SetColor(1, 1, 0);
 	earth.GetActor()->GetProperty()->SetColor(0, 0.6, 1);
 	moon.GetActor()->GetProperty()->SetColor(0.6, 0.6, 0.6);
+	moon.mOrbitActor->GetProperty()->SetColor(1, 0, 0);
+	sun.mOrbitActor->GetProperty()->SetColor(1, 1, 0);
 
   // Render
 	renderer->SetBackground(0, 0, 0);
 
-  renderWindow->Render();
+	renderWindow->Render();
+
+	
 
 	// mouse interactor
   vtkSmartPointer<vtkInteractorStyleTrackballCamera> style = vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
   renderWindowInteractor->SetInteractorStyle( style );
   
 	// initial positions
-	sun.SetPosition(0, 0, 0);
-	earth.SetPosition(149.6e9, 0, 0);
-	moon.SetPosition(earth.mPosition[0] + 3.844e8, 0, 0);
+	sun.SetPosition(0, 0, 0, false);
+	earth.SetPosition(149.6e9, 0, 0, false);
+	moon.SetPosition(earth.mPosition[0] + 3.844e8, 0, 0, false);
 	
 	// 30 km per second
 	earth.mSpeed[1] = 30.0e3;
@@ -193,12 +209,22 @@ int main (int, char *[])
 	cb->AddNewPlanet(&earth);
 	cb->AddNewPlanet(&moon);
 
+	// earth as the center of the universe
+	auto camera = renderer->GetActiveCamera();
+	camera->SetPosition(earth.mPosition[0]/Planet::EARTH_RADIUS, 0, 100);
+	camera->SetFocalPoint(earth.mPosition[0] / Planet::EARTH_RADIUS, 0, 0);
+	camera->SetViewUp(0, 1, 0);
+	renderer->ResetCameraClippingRange();
+	
+	renderer->Render();
+	renderWindow->Render();
+
 	renderWindowInteractor->AddObserver(vtkCommand::TimerEvent, cb);
 
-	int timerId = renderWindowInteractor->CreateRepeatingTimer(100);
+	int timerId = renderWindowInteractor->CreateRepeatingTimer(DELAY_MS);
 	std::cout << "timerId: " << timerId << std::endl;
 	// Destroy the timer when maxCount is reached.
-	cb->maxCount = 365*24;
+	cb->maxCount = 365;
 	cb->timerId = timerId;
 
 	cout << "Starting simulation" << endl;

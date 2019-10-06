@@ -1,0 +1,3 @@
+Follow planet: update camera position in each iteration
+
+Add GUI to dynamically adjust simulation parameters
