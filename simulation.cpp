@@ -8,8 +8,8 @@
 
 using namespace std;
 
-Simulation::Simulation()//QVTKOpenGLWidget* renderWindow) 
-	//: mRenderWindow(renderWindow)
+Simulation::Simulation(QVTKOpenGLWidget* renderWindow) 
+	: mRenderWindow(renderWindow)
 {
 	mTimer = new QTimer;
 
@@ -122,8 +122,7 @@ void Simulation::NextIteration()
 		mPlanets[p]->SetPosition(newPos);
 	}
 
-	//mRenderWindow->GetRenderWindow()->Render();
-	emit Render();
+	mRenderWindow->GetRenderWindow()->Render();
 }
 
 

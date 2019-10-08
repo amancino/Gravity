@@ -14,7 +14,7 @@ class Simulation : public QObject
 	Q_OBJECT
 
 public:
-	Simulation();//QVTKOpenGLWidget* renderWindow);
+	Simulation(QVTKOpenGLWidget* renderWindow);
 	~Simulation();
 
 	const double DT = 60 * 60 * 24;		// time resolution
@@ -28,12 +28,9 @@ public:
 protected slots:
 	void NextIteration();
 
-signals:
-	void Render();
-
 private:
 
-	//QVTKOpenGLWidget* mRenderWindow;
+	QVTKOpenGLWidget* mRenderWindow;
 	QTimer* mTimer;
 
 	std::vector<Planet*> mPlanets;

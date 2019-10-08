@@ -41,11 +41,15 @@ View::View()
 	vtkNew<vtkGenericOpenGLRenderWindow> renderWindow;
 	mRrenderWindowWidget->SetRenderWindow(renderWindow);
 
+	// create simulation object
+	mSim = new Simulation(mRrenderWindowWidget);
+
 	// create renderer and configure simulation
 	vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
 	ConfigureSimulation(renderer);
 	renderer->SetBackground(0, 0, 0);
 	renderWindow->AddRenderer(renderer);
+	
 
 	pbStart = new QPushButton();
 	QVBoxLayout *layout = new QVBoxLayout();
@@ -134,10 +138,10 @@ void View::ConfigureSimulation(vtkRenderer* renderer)
 	camera->SetViewUp(0, 1, 0);
 	renderer->ResetCameraClippingRange();
 
-	cout << "End of configuration" << std::endl;
 
-	mSim = new Simulation();//mRrenderWindowWidget);
 	mSim->AddNewPlanet(sun);
 	mSim->AddNewPlanet(earth);
 	mSim->AddNewPlanet(moon);
+
+	cout << "End of configuration" << std::endl;
 }
