@@ -5,30 +5,80 @@
 #include <vtkSphereSource.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkProperty.h>
+#include <vtkTexturedSphereSource.h>
+#include <vtkImageReader2Factory.h>
+#include <vtkImageReader2.h>
+#include <vtkTransformTextureCoords.h>
+
+#include "view.h"
 
 using namespace std;
 
 const double Planet::EARTH_MASS = 5.972*10e24;
 const double Planet::EARTH_RADIUS = 6371*10e3;
 
-Planet::Planet(std::string name, double radius, double mass)
+Planet::Planet(std::string name, double radius, double mass, SurfaceTexture texture)
 	: mName(name), mRadius(radius), mMass(mass)
 {
 	// For visualization, all bodies are scaled to earth radius unit (eru)
-	auto sphere = vtkSmartPointer<vtkSphereSource>::New();
-	sphere->SetRadius(radius/ EARTH_RADIUS);
-	sphere->SetPhiResolution(16);
-	sphere->SetThetaResolution(16);
-	sphere->SetCenter(0, 0, 0);
-	sphere->Update();
+	// Create a sphere with texture coordinates
+	vtkSmartPointer<vtkTexturedSphereSource> sphere = vtkSmartPointer<vtkTexturedSphereSource>::New();
+	sphere->SetPhiResolution(32);
+	sphere->SetRadius(radius / EARTH_RADIUS);
+	sphere->SetThetaResolution(32);
 
 	// mapper
 	auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-	mapper->SetInputConnection(sphere->GetOutputPort());
-	
 	// actor
 	mActor = vtkSmartPointer<vtkActor>::New();
+
+
+	if (texture != None)
+	{
+		string filename("C:/Users/axel/work/gravity/bin/textures/");
+
+		switch (texture)
+		{
+		case Earth:
+			filename += string("earth.png");
+			break;
+
+		case Sun:
+			filename += string("sun.png");
+			break;
+
+		case Moon:
+			filename += string("moon.png");
+			break;
+
+		default:
+			break;
+		}
+
+		// Read texture file
+		vtkSmartPointer<vtkImageReader2Factory> readerFactory = vtkSmartPointer<vtkImageReader2Factory>::New();
+		vtkImageReader2 *imageReader = readerFactory->CreateImageReader2(filename.c_str());
+		imageReader->SetFileName(filename.c_str());
+
+		// Create texture
+		vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
+		texture->SetInputConnection(imageReader->GetOutputPort());
+
+		vtkSmartPointer<vtkTransformTextureCoords> transformTexture = vtkSmartPointer<vtkTransformTextureCoords>::New();
+		transformTexture->SetInputConnection(sphere->GetOutputPort());
+		transformTexture->SetPosition(0, 0, 0);
+
+		mapper->SetInputConnection(transformTexture->GetOutputPort());
+		mActor->SetTexture(texture);
+
+		imageReader->Delete();
+	}
+	else
+		mapper->SetInputConnection(sphere->GetOutputPort());
+
+
 	mActor->SetMapper(mapper);
+	
 
 	for (int i = 0; i < 3; i++)
 		mSpeed[i] = 0.0;
@@ -40,11 +90,14 @@ Planet::Planet(std::string name, double radius, double mass)
 	auto orbitMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
 	orbitMapper->SetInputData(mOrbit);
 	mOrbitActor->SetMapper(orbitMapper);
+
+	
 }
 
 
 Planet::~Planet()
 {
+	cout << "Planet destructor: " << mName << std::endl;
 }
 
 void Planet::SetPosition(double* arr, bool computeOrbit)

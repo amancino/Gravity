@@ -12,9 +12,13 @@ public:
 	static const double EARTH_MASS;
 	static const double EARTH_RADIUS;
 
+	enum SurfaceTexture { None, Earth, Moon, Sun };
+
 	// radius in m, mass in kg
-	Planet(std::string name, double radius,double mass);
+	Planet(std::string name, double radius,double mass, SurfaceTexture texture = None);
 	~Planet();
+
+	
 
 	void SetPosition(double* arr, bool computeOrbit=true);
 	void SetPosition(double x, double y, double z, bool computeOrbit=true);
@@ -27,7 +31,6 @@ public:
 	double mPosition[3];
 	std::string mName;
 
-	
 	vtkSmartPointer<vtkActor> mOrbitActor;
 
 protected:
